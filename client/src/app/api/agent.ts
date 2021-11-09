@@ -1,39 +1,49 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { toast } from 'react-toastify';
 import { PaginatedResponse } from '../models/pagination';
+import { store } from '../store/configureStore';
 import { history } from './../../index';
 
-const sleep = () => new Promise(resolve => setTimeout(resolve, 500));
+const sleep = () => new Promise((resolve) => setTimeout(resolve, 500));
 
 axios.defaults.baseURL = 'http://localhost:5000/api/';
 axios.defaults.withCredentials = true;
 
 const responseBody = (response: AxiosResponse) => response.data;
 
+axios.interceptors.request.use((config:any) => {
+  const token = store.getState().account.user?.token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 axios.interceptors.response.use(
-  async response => {
+  async (response) => {
     await sleep();
 
     const pagination = response.headers['pagination'];
     if (pagination) {
-      response.data = new PaginatedResponse(response.data, JSON.parse(pagination));
-      return response
+      response.data = new PaginatedResponse(
+        response.data,
+        JSON.parse(pagination)
+      );
+      return response;
     }
     return response;
   },
   (error: AxiosError) => {
-    const { data, status } = error.response!;   //THE ! is just to turn off the TYPE SCRIPT safety error
+    const { data, status } = error.response!; //THE ! is just to turn off the TYPE SCRIPT safety error
     switch (status) {
       case 400:
-          if (data.errors) {
-              const modelStateErrors: string[] = [];
-              for (const key in data.errors) {
-                  if (data.errors[key]) {
-                      modelStateErrors.push(data.errors[key])
-                  }
-              }
-              throw modelStateErrors.flat();
+        if (data.errors) {
+          const modelStateErrors: string[] = [];
+          for (const key in data.errors) {
+            if (data.errors[key]) {
+              modelStateErrors.push(data.errors[key]);
+            }
           }
+          throw modelStateErrors.flat();
+        }
         toast.error(data.title);
         break;
       case 401:
@@ -41,8 +51,8 @@ axios.interceptors.response.use(
         break;
       case 500:
         history.push({
-            pathname: '/server-error',
-            state: {error: data}
+          pathname: '/server-error',
+          state: { error: data },
         });
         break;
 
@@ -54,7 +64,8 @@ axios.interceptors.response.use(
 );
 
 const requests = {
-  get: (url: string, params?: URLSearchParams) => axios.get(url, {params}).then(responseBody),
+  get: (url: string, params?: URLSearchParams) =>
+    axios.get(url, { params }).then(responseBody),
   post: (url: string, body: {}) => axios.post(url, body).then(responseBody),
   put: (url: string, body: {}) => axios.put(url, body).then(responseBody),
   delete: (url: string) => axios.delete(url).then(responseBody),
@@ -63,7 +74,7 @@ const requests = {
 const Catalog = {
   list: (params: URLSearchParams) => requests.get('products', params),
   details: (id: number) => requests.get(`products/${id}`),
-  fetchFilters: () => requests.get('products/filters')
+  fetchFilters: () => requests.get('products/filters'),
 };
 
 const TestErrors = {
@@ -82,10 +93,17 @@ const Basket = {
     requests.delete(`basket?productId=${productId}&quantity=${quantity}`),
 };
 
+const Account = {
+  login: (values: any) => requests.post('account/login', values),
+  register: (values: any) => requests.post('account/register', values),
+  currentUser: () => requests.get('account/currentUser'),
+};
+
 const agent = {
   Catalog,
   TestErrors,
-  Basket
+  Basket,
+  Account,
 };
 
 export default agent;
