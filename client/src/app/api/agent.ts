@@ -6,12 +6,12 @@ import { history } from './../../index';
 
 const sleep = () => new Promise((resolve) => setTimeout(resolve, 500));
 
-axios.defaults.baseURL = 'http://localhost:5000/api/';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL;
 axios.defaults.withCredentials = true;
 
 const responseBody = (response: AxiosResponse) => response.data;
 
-axios.interceptors.request.use((config:any) => {
+axios.interceptors.request.use((config: any) => {
   const token = store.getState().account.user?.token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -19,7 +19,7 @@ axios.interceptors.request.use((config:any) => {
 
 axios.interceptors.response.use(
   async (response) => {
-    await sleep();
+    if (process.env.NODE_ENV === 'development') await sleep();
 
     const pagination = response.headers['pagination'];
     if (pagination) {
@@ -97,18 +97,18 @@ const Account = {
   login: (values: any) => requests.post('account/login', values),
   register: (values: any) => requests.post('account/register', values),
   currentUser: () => requests.get('account/currentUser'),
-  fetchAddress: () => requests.get('account/savedAddress')
+  fetchAddress: () => requests.get('account/savedAddress'),
 };
 
 const Orders = {
   list: () => requests.get('orders'),
   fetch: (id: number) => requests.get(`orders/${id}`),
-  create: (values: any) => requests.post('orders', values)
+  create: (values: any) => requests.post('orders', values),
 };
 
 const Payments = {
-  createPaymentIntent: () => requests.post('payments', {})
-}
+  createPaymentIntent: () => requests.post('payments', {}),
+};
 
 const agent = {
   Catalog,
@@ -116,7 +116,7 @@ const agent = {
   Basket,
   Account,
   Orders,
-  Payments
+  Payments,
 };
 
 export default agent;
